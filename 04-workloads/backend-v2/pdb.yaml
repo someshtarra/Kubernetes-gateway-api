@@ -1,0 +1,15 @@
+---
+# ==============================================================================
+# PodDisruptionBudget for Backend v2 (Canary)
+# ==============================================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend-v2-pdb
+  namespace: production-apps
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+      app.kubernetes.io/instance: backend-v2

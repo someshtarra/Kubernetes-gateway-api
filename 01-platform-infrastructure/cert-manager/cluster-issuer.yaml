@@ -1,0 +1,50 @@
+---
+# ==============================================================================
+# cert-manager ClusterIssuer & Production Certificate Configuration
+# Issues automated TLS certificates stored in Secrets for Gateway listeners
+# ==============================================================================
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-production
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: devops@example.com
+    privateKeySecretRef:
+      name: letsencrypt-production-account-key
+    solvers:
+      - http01:
+          gatewayHTTPRoute:
+            parentRefs:
+              - group: gateway.networking.k8s.io
+                kind: Gateway
+                name: production-gateway
+                namespace: gateway-infra
+---
+# Fallback Self-Signed ClusterIssuer (useful for local dev/testing with kind or minikube)
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-cluster-issuer
+spec:
+  selfSigned: {}
+---
+# TLS Certificate for wildcard/domain in gateway-infra
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-example-tls
+  namespace: gateway-infra
+spec:
+  secretName: wildcard-example-tls
+  issuerRef:
+    name: selfsigned-cluster-issuer
+    kind: ClusterIssuer
+  commonName: "*.example.com"
+  dnsNames:
+    - "example.com"
+    - "*.example.com"
+    - "app.example.com"
+    - "api.example.com"
+    - "canary.example.com"

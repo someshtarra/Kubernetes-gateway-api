@@ -1,0 +1,16 @@
+---
+# ==============================================================================
+# PodDisruptionBudget for Backend v1
+# Guarantees application availability during node drains and cluster upgrades
+# ==============================================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend-v1-pdb
+  namespace: production-apps
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+      app.kubernetes.io/instance: backend-v1

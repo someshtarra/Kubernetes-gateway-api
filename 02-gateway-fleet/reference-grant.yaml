@@ -1,0 +1,35 @@
+---
+# ==============================================================================
+# Cross-Namespace ReferenceGrant
+# Standard Gateway API security mechanism allowing cross-namespace references.
+# Example: Allows Gateway in 'gateway-infra' to reference TLS Secrets stored
+# in a centralized certificate management namespace.
+# ==============================================================================
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-gateway-secrets
+  namespace: gateway-infra
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      namespace: gateway-infra
+  to:
+    - group: ""
+      kind: Secret
+---
+# Example: Allows HTTPRoutes in 'production-apps' to target shared services in 'gateway-infra'
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-route-to-shared-services
+  namespace: gateway-infra
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: production-apps
+  to:
+    - group: ""
+      kind: Service

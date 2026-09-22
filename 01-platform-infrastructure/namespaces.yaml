@@ -1,0 +1,25 @@
+---
+# ==============================================================================
+# Multi-Tenant Namespaces with Pod Security Standards (Restricted)
+# ==============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gateway-infra
+  labels:
+    app.kubernetes.io/part-of: ingress-platform
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: production-apps
+  labels:
+    # This label allows HTTPRoutes in this namespace to attach to the production Gateway
+    gateway.envoyproxy.io/route-allowed: "true"
+    tenant: core-services
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

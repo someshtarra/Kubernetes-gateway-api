@@ -1,0 +1,84 @@
+---
+# ==============================================================================
+# Production EnvoyProxy Custom Configuration
+# Defines the Envoy Data Plane (Proxy Fleet) lifecycle, scaling, and telemetry
+# ==============================================================================
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: production-envoy-proxy
+  namespace: envoy-gateway-system
+spec:
+  telemetry:
+    accessLog:
+      settings:
+        - format:
+            type: JSON
+            json:
+              start_time: "%START_TIME%"
+              method: "%REQ(:METHOD)%"
+              path: "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%"
+              protocol: "%PROTOCOL%"
+              response_code: "%RESPONSE_CODE%"
+              response_flags: "%RESPONSE_FLAGS%"
+              bytes_received: "%BYTES_RECEIVED%"
+              bytes_sent: "%BYTES_SENT%"
+              duration_ms: "%DURATION%"
+              upstream_service_time: "%RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)%"
+              x_forwarded_for: "%REQ(X-FORWARDED-FOR)%"
+              user_agent: "%REQ(USER-AGENT)%"
+              request_id: "%REQ(X-REQUEST-ID)%"
+              upstream_host: "%UPSTREAM_HOST%"
+              route_name: "%ROUTE_NAME%"
+    metrics:
+      prometheus:
+        disable: false
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyDeployment:
+        replicas: 2
+        pod:
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            fsGroup: 65534
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    labelSelector:
+                      matchLabels:
+                        app.gateway.envoyproxy.io/name: envoy
+                    topologyKey: kubernetes.io/hostname
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector:
+                matchLabels:
+                  app.gateway.envoyproxy.io/name: envoy
+        container:
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 2Gi
+        envoyHpa:
+          minReplicas: 2
+          maxReplicas: 10
+          metrics:
+            - type: Resource
+              resource:
+                name: cpu
+                target:
+                  type: Utilization
+                  averageUtilization: 75
+      envoyService:
+        type: LoadBalancer
+        # Preserve client source IP in cloud environments
+        externalTrafficPolicy: Local

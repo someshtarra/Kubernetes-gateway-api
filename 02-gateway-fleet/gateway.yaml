@@ -1,0 +1,65 @@
+---
+# ==============================================================================
+# Production Gateway
+# Managed by Platform / Network Operations Team
+# Located in gateway-infra namespace to maintain infrastructure isolation.
+# ==============================================================================
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: production-gateway
+  namespace: gateway-infra
+  annotations:
+    # Cloud LoadBalancer integration annotations (e.g. AWS NLB, GCP, or Azure)
+    service.beta.kubernetes.io/azure-load-balancer-internal: "false"
+spec:
+  gatewayClassName: eg-production
+  listeners:
+    # Listener 1: Port 80 (HTTP) - dedicated to redirecting all unencrypted traffic to HTTPS
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+
+    # Listener 2: Port 443 (HTTPS) - primary entry point with TLS termination
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: "*.example.com"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: wildcard-example-tls
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              # Only authorized namespaces with this label can bind routes
+              gateway.envoyproxy.io/route-allowed: "true"
+
+---
+# ==============================================================================
+# HTTP-to-HTTPS Automatic Redirection Route
+# Binds strictly to the 'http' listener on port 80 and returns 301 Permanent Redirect
+# ==============================================================================
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: http-to-https-redirect
+  namespace: gateway-infra
+spec:
+  parentRefs:
+    - name: production-gateway
+      namespace: gateway-infra
+      sectionName: http
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301

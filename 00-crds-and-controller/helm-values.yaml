@@ -1,0 +1,69 @@
+# Production Helm Values for Envoy Gateway
+# Chart: oci://docker.io/envoyproxy/gateway-helm (Recommended: v1.6.1+)
+# Documentation: https://gateway.envoyproxy.io/docs/
+
+deployment:
+  envoyGateway:
+    # High availability with 2 controller replicas
+    replicas: 2
+
+    # Enable leader election for controller failover
+    leaderElection:
+      enabled: true
+
+    # Deterministic resource sizing to prevent OOM / CPU starvation
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+
+    # Spreading controller pods across nodes and zones
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  control-plane: envoy-gateway
+              topologyKey: kubernetes.io/hostname
+
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            control-plane: envoy-gateway
+
+    # Hardened Pod Security Context
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 65532
+      runAsGroup: 65532
+      fsGroup: 65532
+
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+          - ALL
+
+# Telemetry and Prometheus metrics export
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 15s
+    labels:
+      release: prometheus-stack
+
+# Managed Kubernetes compatibility:
+# Set to false on GKE / EKS if cluster already manages Gateway API CRDs
+crds:
+  gatewayAPI:
+    enabled: true

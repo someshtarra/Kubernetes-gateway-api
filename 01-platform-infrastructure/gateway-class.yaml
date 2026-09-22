@@ -1,0 +1,17 @@
+---
+# ==============================================================================
+# Production GatewayClass
+# Managed by Cluster/Platform Admins.
+# Links to the custom EnvoyProxy resource to configure the underlying data plane.
+# ==============================================================================
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg-production
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+  parametersRef:
+    group: gateway.envoyproxy.io
+    kind: EnvoyProxy
+    name: production-envoy-proxy
+    namespace: envoy-gateway-system

@@ -1,0 +1,40 @@
+---
+# ==============================================================================
+# Production HTTPRoute: Header-Based Routing & A/B Testing
+# Directs internal QA / Beta testers to new versions based on HTTP request headers
+# ==============================================================================
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: header-based-routing
+  namespace: production-apps
+spec:
+  parentRefs:
+    - name: production-gateway
+      namespace: gateway-infra
+      sectionName: https
+  hostnames:
+    - "preview.example.com"
+  rules:
+    # Rule 1 (Higher Precedence): Requests with header "X-Canary: true" route to backend-v2
+    - matches:
+        - headers:
+            - type: Exact
+              name: X-Canary
+              value: "true"
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: backend-v2
+          port: 3000
+
+    # Rule 2 (Fallback): All other standard users route to stable backend-v1
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: backend-v1
+          port: 3000

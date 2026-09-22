@@ -1,0 +1,40 @@
+---
+# ==============================================================================
+# NetworkPolicy for Backend v2 (Canary)
+# Isolates traffic to only accept connections from Envoy Proxy pods
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-v2-allow-envoy
+  namespace: production-apps
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+      app.kubernetes.io/instance: backend-v2
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: ingress-platform
+          podSelector:
+            matchLabels:
+              app.gateway.envoyproxy.io/name: envoy
+      ports:
+        - protocol: TCP
+          port: 3000
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
