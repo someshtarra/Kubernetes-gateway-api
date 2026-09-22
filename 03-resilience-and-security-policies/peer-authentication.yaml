@@ -1,0 +1,13 @@
+---
+# ==============================================================================
+# Production PeerAuthentication (Strict mTLS)
+# Enforces cryptographic mutual TLS for all service-to-service communication
+# ==============================================================================
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: default-strict-mtls
+  namespace: production-apps
+spec:
+  mtls:
+    mode: STRICT

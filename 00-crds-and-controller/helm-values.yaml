@@ -1,69 +1,67 @@
-# Production Helm Values for Envoy Gateway
-# Chart: oci://docker.io/envoyproxy/gateway-helm (Recommended: v1.6.1+)
-# Documentation: https://gateway.envoyproxy.io/docs/
+# ==============================================================================
+# Production Helm Values for Istiod (Istio Control Plane)
+# Chart: istio/istiod (Recommended: v1.23+ / v1.24+)
+# Documentation: https://istio.io/latest/docs/tasks/traffic-management/ingress/gateway-api/
+# ==============================================================================
 
-deployment:
-  envoyGateway:
-    # High availability with 2 controller replicas
-    replicas: 2
+global:
+  # Tagged release version
+  tag: 1.24.0
+  hub: docker.io/istio
 
-    # Enable leader election for controller failover
-    leaderElection:
-      enabled: true
+# High Availability configuration for istiod
+pilot:
+  autoscaleEnabled: true
+  autoscaleMin: 2
+  autoscaleMax: 5
+  cpu:
+    targetAverageUtilization: 75
 
-    # Deterministic resource sizing to prevent OOM / CPU starvation
-    resources:
-      requests:
-        cpu: 200m
-        memory: 256Mi
-      limits:
-        cpu: 1000m
-        memory: 1Gi
+  # Resource requests and limits to guarantee scheduling and prevent node starvation
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1024Mi
+    limits:
+      cpu: 2000m
+      memory: 2048Mi
 
-    # Spreading controller pods across nodes and zones
-    affinity:
-      podAntiAffinity:
-        preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            podAffinityTerm:
-              labelSelector:
-                matchLabels:
-                  control-plane: envoy-gateway
-              topologyKey: kubernetes.io/hostname
+  # Enable Kubernetes Gateway API controller support in istiod
+  env:
+    PILOT_ENABLE_GATEWAY_API: "true"
+    PILOT_ENABLE_GATEWAY_API_STATUS: "true"
+    PILOT_ENABLE_GATEWAY_API_DEPLOYMENT_CONTROLLER: "true"
 
-    topologySpreadConstraints:
-      - maxSkew: 1
-        topologyKey: topology.kubernetes.io/zone
-        whenUnsatisfiable: ScheduleAnyway
-        labelSelector:
-          matchLabels:
-            control-plane: envoy-gateway
+  # Spread istiod pods across availability zones and nodes
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app: istiod
+            topologyKey: kubernetes.io/hostname
 
-    # Hardened Pod Security Context
-    securityContext:
-      runAsNonRoot: true
-      runAsUser: 65532
-      runAsGroup: 65532
-      fsGroup: 65532
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app: istiod
 
-    containerSecurityContext:
-      allowPrivilegeEscalation: false
-      readOnlyRootFilesystem: true
-      capabilities:
-        drop:
-          - ALL
+# Hardened security context adhering to Restricted Pod Security Standards
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1337
+  runAsGroup: 1337
+  fsGroup: 1337
 
-# Telemetry and Prometheus metrics export
-metrics:
-  enabled: true
-  serviceMonitor:
-    enabled: true
-    interval: 15s
-    labels:
-      release: prometheus-stack
-
-# Managed Kubernetes compatibility:
-# Set to false on GKE / EKS if cluster already manages Gateway API CRDs
-crds:
-  gatewayAPI:
-    enabled: true
+# Prometheus telemetry export
+meshConfig:
+  enablePrometheusMerge: true
+  accessLogFile: /dev/stdout
+  accessLogEncoding: JSON
+  defaultConfig:
+    holdApplicationUntilProxyStarts: true

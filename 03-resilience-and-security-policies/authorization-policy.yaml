@@ -1,0 +1,24 @@
+---
+# ==============================================================================
+# Production AuthorizationPolicy (Zero-Trust RBAC)
+# Enforces method and path-level access control on production workloads
+# ==============================================================================
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: api-rbac-policy
+  namespace: production-apps
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            # Only allow requests originating from the Gateway proxy identity
+            principals: ["cluster.local/ns/gateway-infra/sa/production-gateway-istio"]
+      to:
+        - operation:
+            methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"]
+            paths: ["/*"]

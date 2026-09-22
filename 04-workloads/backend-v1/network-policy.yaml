@@ -1,12 +1,12 @@
 ---
 # ==============================================================================
 # NetworkPolicy for Backend v1
-# Implements zero-trust isolation: only allows ingress traffic from Envoy Proxy pods
+# Implements zero-trust isolation: only allows ingress traffic from Gateway pods
 # ==============================================================================
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: backend-v1-allow-envoy
+  name: backend-v1-allow-gateway
   namespace: production-apps
 spec:
   podSelector:
@@ -18,13 +18,13 @@ spec:
     - Egress
   ingress:
     - from:
-        # Allow ingress from Envoy Proxy data plane in gateway-infra namespace
+        # Allow ingress from Gateway data plane pods in gateway-infra namespace
         - namespaceSelector:
             matchLabels:
               app.kubernetes.io/part-of: ingress-platform
           podSelector:
             matchLabels:
-              app.gateway.envoyproxy.io/name: envoy
+              gateway.networking.k8s.io/gateway-name: production-gateway
       ports:
         - protocol: TCP
           port: 3000

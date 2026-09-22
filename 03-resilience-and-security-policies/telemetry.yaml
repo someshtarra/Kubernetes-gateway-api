@@ -1,0 +1,17 @@
+---
+# ==============================================================================
+# Production Telemetry Policy
+# Configures structured access logging, Prometheus metrics, and tracing
+# ==============================================================================
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  name: gateway-telemetry
+  namespace: gateway-infra
+spec:
+  accessLogging:
+    - providers:
+        - name: envoy
+  metrics:
+    - providers:
+        - name: prometheus

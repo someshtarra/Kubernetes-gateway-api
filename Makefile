@@ -1,13 +1,13 @@
 # ==============================================================================
-# Enterprise Kubernetes Gateway API & Envoy Gateway Management Makefile
+# Enterprise Kubernetes Gateway API & Istio Gateway Controller Management
 # ==============================================================================
 
 SHELL := /bin/bash
-ENVOY_GATEWAY_VERSION ?= v1.6.1
+ISTIO_VERSION ?= 1.24.0
 GATEWAY_NAMESPACE ?= gateway-infra
 APP_NAMESPACE ?= production-apps
 
-.PHONY: help install-eg deploy-infra deploy-gateway deploy-policies deploy-workloads deploy-routes deploy-all test-traffic clean-all status lint
+.PHONY: help install-istio deploy-infra deploy-gateway deploy-policies deploy-workloads deploy-routes deploy-all test-traffic clean-all status lint
 
 help: ## Show this help message
 	@echo "Usage: make [target]"
@@ -19,28 +19,26 @@ lint: ## Validate all Kubernetes YAML manifests for syntax errors
 	@echo "==> Validating YAML syntax across all manifests..."
 	@ruby -e 'require "yaml"; Dir.glob("**/*.yaml").each { |f| YAML.load_stream(File.read(f)) }; puts "✔ All YAML files are valid!"'
 
-install-eg: ## Install Envoy Gateway controller & CRDs
-	@echo "==> Installing Envoy Gateway $(ENVOY_GATEWAY_VERSION)..."
+install-istio: ## Install Istio control plane (istiod) with Gateway API enabled
+	@echo "==> Installing Istio $(ISTIO_VERSION)..."
 	@./00-crds-and-controller/install.sh
 
-deploy-infra: ## Deploy namespaces, EnvoyProxy config, GatewayClass, and cert-manager
+deploy-infra: ## Deploy namespaces, GatewayClass, and cert-manager issuer
 	@echo "==> Deploying platform infrastructure..."
 	@kubectl apply -f 01-platform-infrastructure/namespaces.yaml
-	@kubectl apply -f 01-platform-infrastructure/envoy-proxy-config.yaml
 	@kubectl apply -f 01-platform-infrastructure/gateway-class.yaml
 	@kubectl apply -f 01-platform-infrastructure/cert-manager/cluster-issuer.yaml
 
-deploy-gateway: ## Deploy Gateway fleet, ClientTrafficPolicy, and ReferenceGrants
+deploy-gateway: ## Deploy Gateway fleet and ReferenceGrants
 	@echo "==> Deploying Gateway fleet..."
 	@kubectl apply -f 02-gateway-fleet/reference-grant.yaml
 	@kubectl apply -f 02-gateway-fleet/gateway.yaml
-	@kubectl apply -f 02-gateway-fleet/client-traffic-policy.yaml
 
-deploy-policies: ## Deploy BackendTrafficPolicy, RateLimitPolicy, and SecurityPolicy
+deploy-policies: ## Deploy Telemetry, PeerAuthentication, and AuthorizationPolicy
 	@echo "==> Deploying resilience and security policies..."
-	@kubectl apply -f 03-resilience-and-security-policies/backend-traffic-policy.yaml
-	@kubectl apply -f 03-resilience-and-security-policies/rate-limit-policy.yaml
-	@kubectl apply -f 03-resilience-and-security-policies/security-policy.yaml
+	@kubectl apply -f 03-resilience-and-security-policies/telemetry.yaml
+	@kubectl apply -f 03-resilience-and-security-policies/peer-authentication.yaml
+	@kubectl apply -f 03-resilience-and-security-policies/authorization-policy.yaml
 
 deploy-workloads: ## Deploy hardened backend workloads (v1 & v2)
 	@echo "==> Deploying backend workloads..."
@@ -57,7 +55,7 @@ deploy-routes: ## Deploy HTTPRoute resources (Basic, Rewrite, Canary, Header-bas
 deploy-all: deploy-infra deploy-gateway deploy-policies deploy-workloads deploy-routes ## Deploy all layers sequentially
 	@echo "✔ Production Gateway API stack successfully deployed!"
 
-status: ## Inspect Gateway, HTTPRoute, and Envoy Proxy fleet status
+status: ## Inspect Gateway, HTTPRoute, and auto-provisioned proxy fleet status
 	@echo "=== GatewayClasses ==="
 	@kubectl get gatewayclasses.gateway.networking.k8s.io
 	@echo ""
@@ -67,8 +65,8 @@ status: ## Inspect Gateway, HTTPRoute, and Envoy Proxy fleet status
 	@echo "=== HTTPRoutes ==="
 	@kubectl get httproutes.gateway.networking.k8s.io -A
 	@echo ""
-	@echo "=== Envoy Proxy Data Plane Pods ==="
-	@kubectl get pods -n $(GATEWAY_NAMESPACE) -l app.gateway.envoyproxy.io/name=envoy
+	@echo "=== Auto-Provisioned Gateway Proxy Pods ==="
+	@kubectl get pods -n $(GATEWAY_NAMESPACE) -l gateway.networking.k8s.io/gateway-name=production-gateway
 	@echo ""
 	@echo "=== Application Workloads ==="
 	@kubectl get pods -n $(APP_NAMESPACE)

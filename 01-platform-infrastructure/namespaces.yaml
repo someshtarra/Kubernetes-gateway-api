@@ -1,6 +1,6 @@
 ---
 # ==============================================================================
-# Multi-Tenant Namespaces with Pod Security Standards (Restricted)
+# Multi-Tenant Namespaces with Istio Auto-Injection and Restricted Pod Security
 # ==============================================================================
 apiVersion: v1
 kind: Namespace
@@ -8,6 +8,7 @@ metadata:
   name: gateway-infra
   labels:
     app.kubernetes.io/part-of: ingress-platform
+    istio-injection: enabled
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
@@ -17,9 +18,10 @@ kind: Namespace
 metadata:
   name: production-apps
   labels:
-    # This label allows HTTPRoutes in this namespace to attach to the production Gateway
-    gateway.envoyproxy.io/route-allowed: "true"
+    # Route delegation selector label
+    istio.io/route-allowed: "true"
     tenant: core-services
+    istio-injection: enabled
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
